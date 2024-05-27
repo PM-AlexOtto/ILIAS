@@ -140,6 +140,55 @@ class ilMathJax
         return new self($config, $factory);
     }
 
+
+
+    public function processPage(ilGlobalTemplateInterface $tpl, string $html, $purpose = self::PURPOSE_BROWSER): string
+    {
+
+        if (!$this->detectDelimiters($html)) {
+            return $html;
+        }
+
+        // try the server-side rendering first
+        if ($this->config->isServerEnabled() && (
+            ($purpose === self::PURPOSE_BROWSER && $this->config->isServerForBrowser()) ||
+            ($purpose === self::PURPOSE_EXPORT && $this->config->isServerForExport()) ||
+            ($purpose === self::PURPOSE_PDF && $this->config->isServerForPdf()) ||
+            ($purpose === self::PURPOSE_DEFERRED_PDF && $this->config->isServerForPdf())
+        )
+        ) {
+            // process by server
+            return $html;
+        } elseif ($this->config->isClientEnabled()) {
+
+            // process by browser
+            $tpl->addJavaScript('assets/js/ilMathJaxBrowserConfig.js', false, 1);
+            $tpl->addJavaScript($this->config->getClientScriptUrl(), false, 2);
+            return $html;
+        }
+
+        return $html;
+
+    }
+
+    public function detectDelimiters(string $html): bool
+    {
+        $patterns = [
+            '[tex]',
+            '<span class="latex">',
+            '\(',
+            '\['
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (strpos($html, $pattern) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Initialize the usage for a certain purpose
      * This must be done before any rendering call
@@ -147,11 +196,13 @@ class ilMathJax
     public function init(string $a_purpose = self::PURPOSE_BROWSER): ilMathJax
     {
         // reset the class variables
-        $this->engine = null;
+        $this->engine = self::ENGINE_NONE;
         $this->rendering = self::RENDER_SVG_AS_XML_EMBED;
         $this->output = self::OUTPUT_SVG;
         $this->dpi = self::DEFAULT_DPI;
         $this->zoom_factor = self::DEFAULT_ZOOM;
+
+        return $this;
 
         // try the server-side rendering first, set this engine, if possible
         if ($this->config->isServerEnabled()) {
@@ -282,6 +333,8 @@ class ilMathJax
      */
     public function insertLatexImages(string $a_text, ?string $a_start = '[tex]', ?string $a_end = '[/tex]'): string
     {
+        return $a_text;
+
         // don't change anything if mathjax is not configured
         if ($this->engine === self::ENGINE_NONE) {
             return $a_text;

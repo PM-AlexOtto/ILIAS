@@ -129,7 +129,13 @@ class ilGlobalPageTemplate implements ilGlobalTemplateInterface
         $this->prepareBasicJS();
         $this->prepareBasicCSS();
 
-        PageContentProvider::setContent($this->legacy_content_template->renderPage(self::DEFAULT_BLOCK, true));
+        PageContentProvider::setContent(
+            ilMathJax::getInstance()->processPage(
+                $this,
+                $this->legacy_content_template->renderPage(self::DEFAULT_BLOCK, true)
+            )
+        );
+
         $this->http->sendResponse();
 
         print $this->ui->renderer()->render($this->gs->collector()->layout()->getFinalPage());
@@ -144,7 +150,12 @@ class ilGlobalPageTemplate implements ilGlobalTemplateInterface
         $this->prepareBasicJS();
         $this->prepareBasicCSS();
 
-        PageContentProvider::setContent($this->legacy_content_template->renderPage(self::DEFAULT_BLOCK, true));
+        PageContentProvider::setContent(
+            ilMathJax::getInstance()->processPage(
+                $this,
+                $this->legacy_content_template->renderPage(self::DEFAULT_BLOCK, true)
+            )
+        );
 
         return $this->ui->renderer()->render($this->gs->collector()->layout()->getFinalPage());
     }
