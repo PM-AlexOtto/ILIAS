@@ -12,9 +12,9 @@ window.MathJax = {
       ['\\(', '\\)']],
 
     displayMath: [
-      ['\\[','\\]'] ]
+      ['\\[', '\\]']],
   },
   svg: {
-    fontCache: 'global'
-  }
+    fontCache: 'global',
+  },
 };
