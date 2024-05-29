@@ -140,8 +140,14 @@ class ilMathJax
         return new self($config, $factory);
     }
 
+    /**
+     * Process a page by MathJax
+     * The template is needed to eventually add the MathJax Javascript for browser rendering
+     * The html code is needed to check if Latex code is on the page and to eventually process it by the server
+     */
     public function processPage(ilGlobalTemplateInterface $tpl, string $html, $purpose = self::PURPOSE_BROWSER): string
     {
+        // check if Latex code is included on the page
         if (!$this->detectDelimiters($html)) {
             return $html;
         }
@@ -150,45 +156,11 @@ class ilMathJax
         if ($this->config->isServerEnabled() && (
             ($purpose === self::PURPOSE_BROWSER && $this->config->isServerForBrowser()) ||
             ($purpose === self::PURPOSE_EXPORT && $this->config->isServerForExport()) ||
-            ($purpose === self::PURPOSE_PDF && $this->config->isServerForPdf()) ||
-            ($purpose === self::PURPOSE_DEFERRED_PDF && $this->config->isServerForPdf())
+            ($purpose === self::PURPOSE_PDF && $this->config->isServerForPdf())
         )
         ) {
             // process by server
-            $post = [
-                'html' => $html,
-                'fullPage' => '0'  // indicates whether html already a header and body (0 or 1)
-            ];
-
-            try {
-                $curlConnection = new ilCurlConnection($this->config->getServerAddress());
-                $curlConnection->init();
-                $proxy = ilProxySettings::_getInstance();
-                if ($proxy->isActive()) {
-                    $curlConnection->setOpt(CURLOPT_HTTPPROXYTUNNEL, true);
-                    if (!empty($proxy->getHost())) {
-                        $curlConnection->setOpt(CURLOPT_PROXY, $proxy->getHost());
-                    }
-                    if (!empty($proxy->getPort())) {
-                        $curlConnection->setOpt(CURLOPT_PROXYPORT, $proxy->getPort());
-                    }
-                }
-                $curlConnection->setOpt(CURLOPT_RETURNTRANSFER, true);
-                $curlConnection->setOpt(CURLOPT_VERBOSE, false);
-                $curlConnection->setOpt(CURLOPT_TIMEOUT, 60);
-                $curlConnection->setOpt(CURLOPT_POST, 1);
-                $curlConnection->setOpt(CURLOPT_POSTFIELDS, $this->urlencodeAssoc($post));
-                $curlConnection->setOpt(CURLOPT_HTTPHEADER, array(
-                    "cache-control: no-cache",
-                    "content-type: application/x-www-form-urlencoded"
-                ));
-
-                $output = $curlConnection->exec();
-
-                return $output;
-            } catch (Exception $e) {
-                return $html;
-            }
+            return $this->callServer($html, false);
 
         } elseif ($this->config->isClientEnabled()) {
 
@@ -201,21 +173,12 @@ class ilMathJax
         return $html;
     }
 
-
     /**
-     * Url encode an array of parameters
+     * Detect if MathJax delimiters are used o nthe page
+     * @param string $html
+     * @return bool
      */
-    protected function urlencodeAssoc(array $assoc): string
-    {
-        $parts = [];
-        foreach ($assoc as $key => $value) {
-            $parts[] = urlencode($key) . '=' . urlencode($value);
-        }
-        return implode('&', $parts);
-    }
-
-
-    public function detectDelimiters(string $html): bool
+    protected function detectDelimiters(string $html): bool
     {
         $patterns = [
             '[tex]',
@@ -232,6 +195,54 @@ class ilMathJax
 
         return false;
     }
+
+    /**
+     * Call a MathJax 3 server to process HTML code
+     * The a_full_page parameter determins where the CSS will be included (in head or above content)
+     *
+     * @param string $a_html        code to be processed
+     * @param bool   $a_full_page   code is a full page with head and body
+     * @return string
+     */
+    protected function callServer(string $a_html, bool $a_full_page): string
+    {
+        // Urlencode the POST
+        $post = implode('&', [
+            'html' => urlencode($a_html),
+            'fullPage' => $a_full_page ? '1' : '0'
+        ]);
+
+        try {
+            $curlConnection = new ilCurlConnection($this->config->getServerAddress());
+            $curlConnection->init();
+            $proxy = ilProxySettings::_getInstance();
+            if ($proxy->isActive()) {
+                $curlConnection->setOpt(CURLOPT_HTTPPROXYTUNNEL, true);
+                if (!empty($proxy->getHost())) {
+                    $curlConnection->setOpt(CURLOPT_PROXY, $proxy->getHost());
+                }
+                if (!empty($proxy->getPort())) {
+                    $curlConnection->setOpt(CURLOPT_PROXYPORT, $proxy->getPort());
+                }
+            }
+            $curlConnection->setOpt(CURLOPT_RETURNTRANSFER, true);
+            $curlConnection->setOpt(CURLOPT_VERBOSE, false);
+            $curlConnection->setOpt(CURLOPT_TIMEOUT, 60);
+            $curlConnection->setOpt(CURLOPT_POST, 1);
+            $curlConnection->setOpt(CURLOPT_POSTFIELDS, $post);
+            $curlConnection->setOpt(CURLOPT_HTTPHEADER, array(
+                "cache-control: no-cache",
+                "content-type: application/x-www-form-urlencoded"
+            ));
+
+            $output = $curlConnection->exec();
+
+            return $output;
+        } catch (Exception $e) {
+            return $a_html;
+        }
+    }
+
 
     /**
      * Initialize the usage for a certain purpose
