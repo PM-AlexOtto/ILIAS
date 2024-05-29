@@ -140,7 +140,7 @@ class ilMathJax
         return new self($config, $factory);
     }
 
-    public function preprocess(ilGlobalTemplateInterface $tpl, string $html, $purpose = self::PURPOSE_BROWSER): string
+    public function processPage(ilGlobalTemplateInterface $tpl, string $html, $purpose = self::PURPOSE_BROWSER): string
     {
         if (!$this->detectDelimiters($html)) {
             return $html;
@@ -154,36 +154,10 @@ class ilMathJax
             ($purpose === self::PURPOSE_DEFERRED_PDF && $this->config->isServerForPdf())
         )
         ) {
-            // process by server later
-            return $html;
-        } elseif ($this->config->isClientEnabled()) {
-
-            // process by browser
-            $tpl->addJavaScript('assets/js/ilMathJaxBrowserConfig.js', false, 1);
-            $tpl->addJavaScript($this->config->getClientScriptUrl(), false, 2);
-            return $html;
-        }
-
-        return $html;
-    }
-
-    public function postprocess(string $html, $purpose = self::PURPOSE_BROWSER)
-    {
-        if (!$this->detectDelimiters($html)) {
-            return $html;
-        }
-
-        // try the server-side rendering first
-        if ($this->config->isServerEnabled() && (
-            ($purpose === self::PURPOSE_BROWSER && $this->config->isServerForBrowser()) ||
-                ($purpose === self::PURPOSE_EXPORT && $this->config->isServerForExport()) ||
-                ($purpose === self::PURPOSE_PDF && $this->config->isServerForPdf()) ||
-                ($purpose === self::PURPOSE_DEFERRED_PDF && $this->config->isServerForPdf())
-        )
-        ) {
-
+            // process by server
             $post = [
                 'html' => $html,
+                'fullPage' => '0'  // indicates whether html already a header and body (0 or 1)
             ];
 
             try {
@@ -215,10 +189,18 @@ class ilMathJax
             } catch (Exception $e) {
                 return $html;
             }
+
+        } elseif ($this->config->isClientEnabled()) {
+
+            // process by browser
+            $tpl->addJavaScript('assets/js/ilMathJaxBrowserConfig.js', false, 1);
+            $tpl->addJavaScript($this->config->getClientScriptUrl(), false, 2);
+            return $html;
         }
 
         return $html;
     }
+
 
     /**
      * Url encode an array of parameters
