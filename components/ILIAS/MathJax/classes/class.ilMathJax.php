@@ -140,11 +140,8 @@ class ilMathJax
         return new self($config, $factory);
     }
 
-
-
-    public function processPage(ilGlobalTemplateInterface $tpl, string $html, $purpose = self::PURPOSE_BROWSER): string
+    public function preprocess(ilGlobalTemplateInterface $tpl, string $html, $purpose = self::PURPOSE_BROWSER): string
     {
-
         if (!$this->detectDelimiters($html)) {
             return $html;
         }
@@ -157,7 +154,7 @@ class ilMathJax
             ($purpose === self::PURPOSE_DEFERRED_PDF && $this->config->isServerForPdf())
         )
         ) {
-            // process by server
+            // process by server later
             return $html;
         } elseif ($this->config->isClientEnabled()) {
 
@@ -168,8 +165,73 @@ class ilMathJax
         }
 
         return $html;
-
     }
+
+    public function postprocess(string $html, $purpose = self::PURPOSE_BROWSER)
+    {
+        if (!$this->detectDelimiters($html)) {
+            return $html;
+        }
+
+        // try the server-side rendering first
+        if ($this->config->isServerEnabled() && (
+            ($purpose === self::PURPOSE_BROWSER && $this->config->isServerForBrowser()) ||
+                ($purpose === self::PURPOSE_EXPORT && $this->config->isServerForExport()) ||
+                ($purpose === self::PURPOSE_PDF && $this->config->isServerForPdf()) ||
+                ($purpose === self::PURPOSE_DEFERRED_PDF && $this->config->isServerForPdf())
+        )
+        ) {
+
+            $post = [
+                'html' => $html,
+            ];
+
+            try {
+                $curlConnection = new ilCurlConnection($this->config->getServerAddress());
+                $curlConnection->init();
+                $proxy = ilProxySettings::_getInstance();
+                if ($proxy->isActive()) {
+                    $curlConnection->setOpt(CURLOPT_HTTPPROXYTUNNEL, true);
+                    if (!empty($proxy->getHost())) {
+                        $curlConnection->setOpt(CURLOPT_PROXY, $proxy->getHost());
+                    }
+                    if (!empty($proxy->getPort())) {
+                        $curlConnection->setOpt(CURLOPT_PROXYPORT, $proxy->getPort());
+                    }
+                }
+                $curlConnection->setOpt(CURLOPT_RETURNTRANSFER, true);
+                $curlConnection->setOpt(CURLOPT_VERBOSE, false);
+                $curlConnection->setOpt(CURLOPT_TIMEOUT, 60);
+                $curlConnection->setOpt(CURLOPT_POST, 1);
+                $curlConnection->setOpt(CURLOPT_POSTFIELDS, $this->urlencodeAssoc($post));
+                $curlConnection->setOpt(CURLOPT_HTTPHEADER, array(
+                    "cache-control: no-cache",
+                    "content-type: application/x-www-form-urlencoded"
+                ));
+
+                $output = $curlConnection->exec();
+
+                return $output;
+            } catch (Exception $e) {
+                return $html;
+            }
+        }
+
+        return $html;
+    }
+
+    /**
+     * Url encode an array of parameters
+     */
+    protected function urlencodeAssoc(array $assoc): string
+    {
+        $parts = [];
+        foreach ($assoc as $key => $value) {
+            $parts[] = urlencode($key) . '=' . urlencode($value);
+        }
+        return implode('&', $parts);
+    }
+
 
     public function detectDelimiters(string $html): bool
     {

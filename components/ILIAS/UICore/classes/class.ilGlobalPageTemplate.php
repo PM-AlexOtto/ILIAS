@@ -130,7 +130,7 @@ class ilGlobalPageTemplate implements ilGlobalTemplateInterface
         $this->prepareBasicCSS();
 
         PageContentProvider::setContent(
-            ilMathJax::getInstance()->processPage(
+            ilMathJax::getInstance()->preprocess(
                 $this,
                 $this->legacy_content_template->renderPage(self::DEFAULT_BLOCK, true)
             )
@@ -138,7 +138,9 @@ class ilGlobalPageTemplate implements ilGlobalTemplateInterface
 
         $this->http->sendResponse();
 
-        print $this->ui->renderer()->render($this->gs->collector()->layout()->getFinalPage());
+        print ilMathJax::getInstance()->postprocess(
+            $this->ui->renderer()->render($this->gs->collector()->layout()->getFinalPage())
+        );
 
         // save language usages as late as possible
         ilObjLanguageAccess::_saveUsages();
@@ -151,13 +153,15 @@ class ilGlobalPageTemplate implements ilGlobalTemplateInterface
         $this->prepareBasicCSS();
 
         PageContentProvider::setContent(
-            ilMathJax::getInstance()->processPage(
+            ilMathJax::getInstance()->preprocess(
                 $this,
                 $this->legacy_content_template->renderPage(self::DEFAULT_BLOCK, true)
             )
         );
 
-        return $this->ui->renderer()->render($this->gs->collector()->layout()->getFinalPage());
+        return ilMathJax::getInstance()->postprocess(
+            $this->ui->renderer()->render($this->gs->collector()->layout()->getFinalPage())
+        );
     }
 
     public function addJavaScript(string $a_js_file, bool $a_add_version_parameter = true, int $a_batch = 2): void
