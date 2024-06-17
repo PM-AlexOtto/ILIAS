@@ -140,6 +140,9 @@ class ilMathJax
         return new self($config, $factory);
     }
 
+    // databay-patch: begin mathjax
+    // new functions to proess a whole page
+
     /**
      * Process a page by MathJax
      * The template is needed to eventually add the MathJax Javascript for browser rendering
@@ -243,6 +246,7 @@ class ilMathJax
         }
     }
 
+    // databay-patch: end mathjax
 
     /**
      * Initialize the usage for a certain purpose
@@ -250,6 +254,9 @@ class ilMathJax
      */
     public function init(string $a_purpose = self::PURPOSE_BROWSER): ilMathJax
     {
+        // databay-patch: begin mathjax
+        // use just the default initialisation
+
         // reset the class variables
         $this->engine = self::ENGINE_NONE;
         $this->rendering = self::RENDER_SVG_AS_XML_EMBED;
@@ -258,6 +265,7 @@ class ilMathJax
         $this->zoom_factor = self::DEFAULT_ZOOM;
 
         return $this;
+        // databay-patch: end mathjax
 
         // try the server-side rendering first, set this engine, if possible
         if ($this->config->isServerEnabled()) {
@@ -388,7 +396,10 @@ class ilMathJax
      */
     public function insertLatexImages(string $a_text, ?string $a_start = '[tex]', ?string $a_end = '[/tex]'): string
     {
+        // databay-patch: begin mathjax
+        // don't do anything here
         return $a_text;
+        // databay-patch: end mathjax
 
         // don't change anything if mathjax is not configured
         if ($this->engine === self::ENGINE_NONE) {

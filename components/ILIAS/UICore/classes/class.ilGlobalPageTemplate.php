@@ -129,12 +129,16 @@ class ilGlobalPageTemplate implements ilGlobalTemplateInterface
         $this->prepareBasicJS();
         $this->prepareBasicCSS();
 
+        // databay-patch: begin mathjax
+        // process the page content
+
         PageContentProvider::setContent(
             ilMathJax::getInstance()->processPage(
                 $this,
                 $this->legacy_content_template->renderPage(self::DEFAULT_BLOCK, true)
             )
         );
+        // databay-patch: end mathjax
 
         $this->http->sendResponse();
 
@@ -150,12 +154,16 @@ class ilGlobalPageTemplate implements ilGlobalTemplateInterface
         $this->prepareBasicJS();
         $this->prepareBasicCSS();
 
+        // databay-patch: begin mathjax
+        // process the page content
+
         PageContentProvider::setContent(
             ilMathJax::getInstance()->processPage(
                 $this,
                 $this->legacy_content_template->renderPage(self::DEFAULT_BLOCK, true)
             )
         );
+        // databay-patch: end mathjax
 
         return $this->ui->renderer()->render($this->gs->collector()->layout()->getFinalPage());
     }
