@@ -140,6 +140,117 @@ class ilMathJax
         return new self($config, $factory);
     }
 
+    // databay-patch: begin mathjax
+    // new functions to proess a whole page
+
+    /**
+     * Process a page by MathJax
+     * The template is needed to eventually add the MathJax Javascript for browser rendering
+     * The html code is needed to check if Latex code is on the page and to eventually process it by the server
+     */
+    public function processPage(ilGlobalTemplateInterface $tpl, string $html, $purpose = self::PURPOSE_BROWSER): string
+    {
+        // check if Latex code is included on the page
+        if (!$this->detectDelimiters($html)) {
+            return $html;
+        }
+
+        // try the server-side rendering first
+        if ($this->config->isServerEnabled() && (
+            ($purpose === self::PURPOSE_BROWSER && $this->config->isServerForBrowser()) ||
+            ($purpose === self::PURPOSE_EXPORT && $this->config->isServerForExport()) ||
+            ($purpose === self::PURPOSE_PDF && $this->config->isServerForPdf())
+        )
+        ) {
+            // process by server
+            return $this->callServer($html, false);
+
+        } elseif ($this->config->isClientEnabled()) {
+
+            // process by browser
+            $tpl->addJavaScript('assets/js/ilMathJaxBrowserConfig.js', true, 1);
+            $tpl->addJavaScript('./node_modules/mathjax/tex-chtml.js', true, 1);
+
+            // $tpl->addJavaScript($this->config->getClientScriptUrl(), false, 2);
+            return $html;
+        }
+
+        return $html;
+    }
+
+    /**
+     * Detect if MathJax delimiters are used o nthe page
+     * @param string $html
+     * @return bool
+     */
+    protected function detectDelimiters(string $html): bool
+    {
+        $patterns = [
+            '[tex]',
+            '<span class="latex">',
+            '\(',
+            '\['
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (strpos($html, $pattern) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Call a MathJax 3 server to process HTML code
+     * The a_full_page parameter determins where the CSS will be included (in head or above content)
+     *
+     * @param string $a_html        code to be processed
+     * @param bool   $a_full_page   code is a full page with head and body
+     * @return string
+     */
+    protected function callServer(string $a_html, bool $a_full_page): string
+    {
+        // Urlencode the POST
+        $post = implode('&', [
+            'html=' . urlencode($a_html),
+            'fullPage=' . $a_full_page ? '1' : '0'
+        ]);
+
+        try {
+            $curlConnection = new ilCurlConnection($this->config->getServerAddress());
+            $curlConnection->init();
+            $proxy = ilProxySettings::_getInstance();
+            if ($proxy->isActive()) {
+                $curlConnection->setOpt(CURLOPT_HTTPPROXYTUNNEL, true);
+                if (!empty($proxy->getHost())) {
+                    $curlConnection->setOpt(CURLOPT_PROXY, $proxy->getHost());
+                }
+                if (!empty($proxy->getPort())) {
+                    $curlConnection->setOpt(CURLOPT_PROXYPORT, $proxy->getPort());
+                }
+            }
+            $curlConnection->setOpt(CURLOPT_RETURNTRANSFER, true);
+            $curlConnection->setOpt(CURLOPT_VERBOSE, false);
+            $curlConnection->setOpt(CURLOPT_TIMEOUT, 60);
+            $curlConnection->setOpt(CURLOPT_POST, 1);
+            $curlConnection->setOpt(CURLOPT_POSTFIELDS, $post);
+            $curlConnection->setOpt(CURLOPT_HTTPHEADER, array(
+                "cache-control: no-cache",
+                "content-type: application/x-www-form-urlencoded"
+            ));
+
+            $output = $curlConnection->exec();
+
+            return empty($output) ? $a_html : $output;
+
+        } catch (Exception $e) {
+            return $a_html;
+        }
+    }
+
+    // databay-patch: end mathjax
+
     /**
      * Initialize the usage for a certain purpose
      * This must be done before any rendering call
@@ -260,12 +371,8 @@ class ilMathJax
         if ($this->config->isClientEnabled()) {
             $tpl = $a_tpl ?? $this->factory->template();
 
-            if (!empty($this->config->getClintPolyfillUrl())) {
-                $tpl->addJavaScript($this->config->getClintPolyfillUrl());
-            }
-            if (!empty($this->config->getClientScriptUrl())) {
-                $tpl->addJavaScript($this->config->getClientScriptUrl());
-            }
+            $tpl->addJavaScript('components/ILIAS/MathJax/config.js', true, 0);
+            $tpl->addJavaScript('components/ILIAS/MathJax/script.js', true, 1);
         }
 
         return $this;
