@@ -211,8 +211,8 @@ class ilMathJax
     {
         // Urlencode the POST
         $post = implode('&', [
-            'html' => urlencode($a_html),
-            'fullPage' => $a_full_page ? '1' : '0'
+            'html=' . urlencode($a_html),
+            'fullPage=' . $a_full_page ? '1' : '0'
         ]);
 
         try {
@@ -240,7 +240,8 @@ class ilMathJax
 
             $output = $curlConnection->exec();
 
-            return $output;
+            return empty($output) ? $a_html : $output;
+
         } catch (Exception $e) {
             return $a_html;
         }
