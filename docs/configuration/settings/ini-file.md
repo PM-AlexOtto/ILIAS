@@ -34,8 +34,8 @@ to the webserver. These files are located here:
 | vscantype                       | "none"                             |             |
 | scancommand                     | ""                                 |             |
 | cleancommand                    | ""                                 |             |
-| enable_system_styles_management | "1"                                |             |
-| lessc                           | "/usr/local/bin/lessc"             |             |
+| enable_system_styles_management | ""                                 |             |
+| lessc                           | ""                                 |             |
 | **[log]**                       |                                    |             |
 | path                            | "/var/iliasdata"                   |             |
 | file                            | "ilias.log"                        |             |
