@@ -11,6 +11,7 @@ services:
           - ILIAS_DB_USER=root
           - ILIAS_DB_PASSWORD=example
           - ILIAS_ROOT_PASSWORD=example
+          - ILIAS_DEVMODE=1
     mysql:
         image: mysql:5.7
         ports:
