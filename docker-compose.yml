@@ -7,7 +7,7 @@ services:
         links:
           - mysql
         volumes:
-          - ${PWD}:/var/www/html
+          - ${HOST_PWD}:/var/www/html
         environment:
           - ILIAS_AUTO_SETUP=1
           - ILIAS_DB_USER=root
